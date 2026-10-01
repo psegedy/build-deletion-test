@@ -4,22 +4,53 @@ pr:
   branches:
     include:
       - main
+  # autoCancel defaults to true
 
 pool:
   vmImage: ubuntu-latest
 
-steps:
-- bash: |
-    echo "Hello, world!"
-  displayName: Run a one-line Bash script
+stages:
+- stage: LongRunning
+  displayName: Long-running stage
+  jobs:
+  - job: LongRunningJob
+    displayName: Long-running job
+    timeoutInMinutes: 20
+    steps:
+    - bash: |
+        echo "Starting 5-minute operation..."
+        sleep 300
+        echo "Long-running operation completed."
+      displayName: Long-running script
 
-- bash: |
-    echo "Add other tasks to build, test, and deploy your project."
-    echo "See https://aka.ms/yaml"
-  displayName: Run a multi-line Bash script
+- stage: RunAfterCancellation
+  displayName: Run even after cancellation
+  dependsOn:
+    - LongRunning
 
-- bash: |
-    echo "Sleeping for 10 minutes..."
-    sleep 600
-    echo "Sleep completed."
-  displayName: Long-running Bash script
+  # Evaluated only after LongRunning reaches a terminal state.
+  # This includes succeeded, failed, and canceled.
+  condition: always()
+
+  jobs:
+  - job: CancellationCleanup
+    displayName: Cancellation cleanup
+    condition: always()
+
+    # Time allowed for run-always work after cancellation.
+    # The default is normally 5 minutes, so increase it for a
+    # cleanup operation that intentionally takes 5 minutes.
+    cancelTimeoutInMinutes: 15
+    timeoutInMinutes: 20
+
+    steps:
+    - bash: |
+        echo "Cleanup stage started."
+        echo "Build result entering cleanup: $(Agent.JobStatus)"
+
+        # The delay happens after the condition has evaluated.
+        sleep 300
+
+        echo "Cleanup stage completed."
+      displayName: Slow cancellation cleanup
+      condition: always()
