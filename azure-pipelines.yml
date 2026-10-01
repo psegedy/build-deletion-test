@@ -22,6 +22,14 @@ stages:
         sleep 300
         echo "Long-running operation completed."
       displayName: Long-running script
+  - job: AlwaysRun
+    condition: always()
+    steps:
+    - bash: |
+        echo "Job that runs always for 5 min"
+        sleep 300
+        echo "AlwaysRun done"
+
 
 - stage: RunAfterCancellation
   displayName: Run even after cancellation
